@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>24시간 타임테이블</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-root">
+      <header class="app-header">
+        <div class="app-title">24시간 타임테이블</div>
+        <div class="app-subtitle">
+          30분 단위로 드래그해서 시간 범위를 선택하세요.
+        </div>
+        <div class="date-row">
+          <label for="dateInput">날짜</label>
+          <input id="dateInput" type="date" />
+        </div>
+      </header>
+
+      <main class="app-main">
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-color legend-a"></span>
+            <span>시간 블록</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color legend-selected"></span>
+            <span>선택 중</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color legend-has-schedule"></span>
+            <span>저장된 일정</span>
+          </div>
+        </div>
+
+        <div id="timeGridContainer" class="time-grid-container">
+          <div id="timeGrid" class="time-grid"></div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>입력 예: 계단운동 (X왕복2번)</div>
+        <div>활동 이름은 최대 20자까지 저장됩니다.</div>
+      </footer>
+    </div>
+
+    <!-- 제목 입력 모달 -->
+    <div id="titleModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <h2>활동 이름 입력</h2>
+        <p class="modal-description">최대 20자까지 입력 가능합니다.</p>
+        <input
+          id="titleInput"
+          type="text"
+          maxlength="20"
+          placeholder="예: 계단운동 (X왕복2번)"
+        />
+        <div id="charCount" class="char-count">0 / 20</div>
+        <div class="modal-actions">
+          <button id="cancelButton" class="btn-secondary">취소</button>
+          <button id="saveButton" class="btn-primary">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+  </html>
+
