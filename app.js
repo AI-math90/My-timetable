@@ -9,11 +9,16 @@ let dragStartIndex = null;
 let selectionStartIndex = null;
 let selectionEndIndex = null;
 
+let selectionBarElement = null;
+let selectionTextElement = null;
+let openModalButtonElement = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   loadSchedules();
   setupDateInput();
   buildTimeGrid();
   setupModal();
+  setupSelectionBar();
   renderForCurrentDate();
 });
 
@@ -61,7 +66,6 @@ function buildTimeGrid() {
 
 function attachBlockEvents(block) {
   block.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
     const index = parseInt(block.dataset.index, 10);
     if (Number.isNaN(index)) return;
 
@@ -70,12 +74,7 @@ function attachBlockEvents(block) {
     selectionStartIndex = index;
     selectionEndIndex = index;
     updateSelectionVisual();
-
-    try {
-      block.setPointerCapture(event.pointerId);
-    } catch {
-      // 지원하지 않는 경우 무시
-    }
+    updateSelectionBar();
   });
 
   block.addEventListener("pointerenter", () => {
@@ -118,6 +117,7 @@ function updateSelectionRange(currentIndex) {
   selectionStartIndex = start;
   selectionEndIndex = end;
   updateSelectionVisual();
+  updateSelectionBar();
 }
 
 function updateSelectionVisual() {
@@ -149,6 +149,7 @@ function clearSelection() {
   selectionStartIndex = null;
   selectionEndIndex = null;
   updateSelectionVisual();
+  updateSelectionBar();
 }
 
 // 모달 관련
@@ -209,6 +210,57 @@ function closeTitleModal(cancelOnly) {
   if (cancelOnly) {
     clearSelection();
   }
+}
+
+// 선택 정보 바
+
+function setupSelectionBar() {
+  selectionBarElement = document.getElementById("selectionBar");
+  selectionTextElement = document.getElementById("selectionText");
+  openModalButtonElement = document.getElementById("openModalButton");
+
+  if (!selectionBarElement || !openModalButtonElement) return;
+
+  openModalButtonElement.addEventListener("click", () => {
+    if (
+      selectionStartIndex === null ||
+      selectionEndIndex === null ||
+      selectionStartIndex > selectionEndIndex
+    ) {
+      return;
+    }
+    openTitleModal();
+  });
+
+  updateSelectionBar();
+}
+
+function updateSelectionBar() {
+  if (
+    !selectionBarElement ||
+    !selectionTextElement ||
+    !openModalButtonElement
+  ) {
+    return;
+  }
+
+  if (
+    selectionStartIndex === null ||
+    selectionEndIndex === null ||
+    selectionStartIndex > selectionEndIndex
+  ) {
+    selectionBarElement.classList.add("hidden");
+    selectionTextElement.textContent = "선택된 시간이 없습니다.";
+    openModalButtonElement.disabled = true;
+    return;
+  }
+
+  const fromLabel = formatTimeLabel(selectionStartIndex);
+  const toLabel = formatTimeLabel(selectionEndIndex);
+  selectionTextElement.textContent = `${fromLabel} ~ ${toLabel} 선택됨`;
+
+  selectionBarElement.classList.remove("hidden");
+  openModalButtonElement.disabled = false;
 }
 
 function updateCharCount() {
