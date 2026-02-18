@@ -1,24 +1,17 @@
-const BLOCK_COUNT = 48; // 24시간 * 2 (30분 단위)
-const STORAGE_KEY = "timetable_schedules_v1";
+const BLOCK_COUNT = 36; // 06:00 ~ 24:00, 30분 단위 (18시간 * 2)
+const STORAGE_KEY = "timetable_schedules_v2";
 
 let schedules = [];
 let currentDate = "2026-02-01"; // 초기 날짜: 2026-02-01
 
-let isSelecting = false;
-let dragStartIndex = null;
-let selectionStartIndex = null;
-let selectionEndIndex = null;
-
-let selectionBarElement = null;
-let selectionTextElement = null;
-let openModalButtonElement = null;
+let clipboardTitle = "";
+let currentEditIndex = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   loadSchedules();
   setupDateInput();
   buildTimeGrid();
   setupModal();
-  setupSelectionBar();
   renderForCurrentDate();
 });
 
@@ -29,7 +22,6 @@ function setupDateInput() {
   dateInput.value = currentDate;
   dateInput.addEventListener("change", (e) => {
     currentDate = e.target.value || currentDate;
-    clearSelection();
     renderForCurrentDate();
   });
 }
@@ -52,104 +44,64 @@ function buildTimeGrid() {
     const content = document.createElement("div");
     content.className = "time-content time-content-empty";
 
+    const textWrapper = document.createElement("div");
+    textWrapper.className = "time-text-wrapper";
+
     const text = document.createElement("div");
     text.className = "time-content-text";
-    content.appendChild(text);
+    textWrapper.appendChild(text);
+
+    const actions = document.createElement("div");
+    actions.className = "time-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "icon-btn edit-btn";
+    editBtn.type = "button";
+    editBtn.textContent = "입력";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "icon-btn copy-btn";
+    copyBtn.type = "button";
+    copyBtn.textContent = "복사";
+
+    const pasteBtn = document.createElement("button");
+    pasteBtn.className = "icon-btn paste-btn";
+    pasteBtn.type = "button";
+    pasteBtn.textContent = "붙여넣기";
+
+    actions.appendChild(editBtn);
+    actions.appendChild(copyBtn);
+    actions.appendChild(pasteBtn);
+
+    content.appendChild(textWrapper);
+    content.appendChild(actions);
 
     block.appendChild(timeLabel);
     block.appendChild(content);
 
-    attachBlockEvents(block);
+    attachBlockEvents(block, { editBtn, copyBtn, pasteBtn });
     grid.appendChild(block);
   }
 }
 
-function attachBlockEvents(block) {
-  block.addEventListener("pointerdown", (event) => {
-    const index = parseInt(block.dataset.index, 10);
-    if (Number.isNaN(index)) return;
+function attachBlockEvents(block, { editBtn, copyBtn, pasteBtn }) {
+  const index = parseInt(block.dataset.index, 10);
+  if (Number.isNaN(index)) return;
 
-    isSelecting = true;
-    dragStartIndex = index;
-    selectionStartIndex = index;
-    selectionEndIndex = index;
-    updateSelectionVisual();
-    updateSelectionBar();
+  editBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openTitleModal(index);
   });
 
-  block.addEventListener("pointerenter", () => {
-    if (!isSelecting) return;
-    const index = parseInt(block.dataset.index, 10);
-    if (Number.isNaN(index)) return;
-
-    updateSelectionRange(index);
+  copyBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    handleCopy(index);
   });
 
-  block.addEventListener("pointerup", handlePointerEnd);
-  block.addEventListener("pointercancel", handlePointerEnd);
-}
-
-function handlePointerEnd() {
-  if (!isSelecting) return;
-
-  isSelecting = false;
-
-  if (
-    selectionStartIndex === null ||
-    selectionEndIndex === null ||
-    selectionStartIndex > selectionEndIndex
-  ) {
-    clearSelection();
-    return;
-  }
-
-  openTitleModal();
-}
-
-function updateSelectionRange(currentIndex) {
-  if (dragStartIndex === null) return;
-  let start = Math.min(dragStartIndex, currentIndex);
-  let end = Math.max(dragStartIndex, currentIndex);
-
-  start = Math.max(0, start);
-  end = Math.min(BLOCK_COUNT - 1, end);
-
-  selectionStartIndex = start;
-  selectionEndIndex = end;
-  updateSelectionVisual();
-  updateSelectionBar();
-}
-
-function updateSelectionVisual() {
-  const grid = document.getElementById("timeGrid");
-  if (!grid) return;
-
-  const blocks = Array.from(grid.getElementsByClassName("time-block"));
-  blocks.forEach((block) => {
-    const index = parseInt(block.dataset.index, 10);
-    if (Number.isNaN(index)) return;
-
-    const isInRange =
-      selectionStartIndex !== null &&
-      selectionEndIndex !== null &&
-      index >= selectionStartIndex &&
-      index <= selectionEndIndex;
-
-    if (isInRange) {
-      block.classList.add("selected");
-    } else {
-      block.classList.remove("selected");
-    }
+  pasteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    handlePaste(index);
   });
-}
-
-function clearSelection() {
-  isSelecting = false;
-  dragStartIndex = null;
-  selectionStartIndex = null;
-  selectionEndIndex = null;
-  updateSelectionVisual();
-  updateSelectionBar();
 }
 
 // 모달 관련
@@ -192,9 +144,13 @@ function setupModal() {
   });
 }
 
-function openTitleModal() {
+function openTitleModal(index) {
   if (!modalElement || !titleInputElement) return;
-  titleInputElement.value = "";
+
+  currentEditIndex = index;
+
+  const existing = getScheduleForCurrentDate(index);
+  titleInputElement.value = existing ? existing.title : "";
   updateCharCount();
 
   modalElement.classList.remove("hidden");
@@ -208,59 +164,8 @@ function closeTitleModal(cancelOnly) {
   if (!modalElement) return;
   modalElement.classList.add("hidden");
   if (cancelOnly) {
-    clearSelection();
+    currentEditIndex = null;
   }
-}
-
-// 선택 정보 바
-
-function setupSelectionBar() {
-  selectionBarElement = document.getElementById("selectionBar");
-  selectionTextElement = document.getElementById("selectionText");
-  openModalButtonElement = document.getElementById("openModalButton");
-
-  if (!selectionBarElement || !openModalButtonElement) return;
-
-  openModalButtonElement.addEventListener("click", () => {
-    if (
-      selectionStartIndex === null ||
-      selectionEndIndex === null ||
-      selectionStartIndex > selectionEndIndex
-    ) {
-      return;
-    }
-    openTitleModal();
-  });
-
-  updateSelectionBar();
-}
-
-function updateSelectionBar() {
-  if (
-    !selectionBarElement ||
-    !selectionTextElement ||
-    !openModalButtonElement
-  ) {
-    return;
-  }
-
-  if (
-    selectionStartIndex === null ||
-    selectionEndIndex === null ||
-    selectionStartIndex > selectionEndIndex
-  ) {
-    selectionBarElement.classList.add("hidden");
-    selectionTextElement.textContent = "선택된 시간이 없습니다.";
-    openModalButtonElement.disabled = true;
-    return;
-  }
-
-  const fromLabel = formatTimeLabel(selectionStartIndex);
-  const toLabel = formatTimeLabel(selectionEndIndex);
-  selectionTextElement.textContent = `${fromLabel} ~ ${toLabel} 선택됨`;
-
-  selectionBarElement.classList.remove("hidden");
-  openModalButtonElement.disabled = false;
 }
 
 function updateCharCount() {
@@ -285,37 +190,14 @@ function saveScheduleFromModal() {
   const trimmed = raw.trim();
   if (!trimmed) return;
 
-  if (
-    selectionStartIndex === null ||
-    selectionEndIndex === null ||
-    selectionStartIndex > selectionEndIndex
-  ) {
+  if (currentEditIndex === null) {
     closeTitleModal(true);
     return;
   }
 
-  // 같은 날짜 + 겹치는 구간 기존 일정은 제거 (단순화)
-  schedules = schedules.filter((s) => {
-    if (s.date !== currentDate) return true;
-    const noOverlap =
-      s.endIndex < selectionStartIndex || s.startIndex > selectionEndIndex;
-    return noOverlap;
-  });
-
-  const schedule = {
-    id: Date.now(),
-    date: currentDate,
-    startIndex: selectionStartIndex,
-    endIndex: selectionEndIndex,
-    title: trimmed,
-  };
-
-  schedules.push(schedule);
-  saveSchedules();
-
+  upsertSchedule(currentEditIndex, trimmed);
   closeTitleModal(false);
-  clearSelection();
-  renderForCurrentDate();
+  currentEditIndex = null;
 }
 
 // 렌더링
@@ -331,9 +213,12 @@ function renderForCurrentDate() {
     const index = parseInt(block.dataset.index, 10);
     if (Number.isNaN(index)) return;
 
-    const schedule = daySchedules.find(
-      (s) => index >= s.startIndex && index <= s.endIndex
-    );
+    const schedule = daySchedules.find((s) => {
+      const start = typeof s.startIndex === "number" ? s.startIndex : s.index;
+      const end =
+        typeof s.endIndex === "number" ? s.endIndex : start;
+      return index >= start && index <= end;
+    });
 
     const content = block.querySelector(".time-content");
     const text = block.querySelector(".time-content-text");
@@ -350,6 +235,56 @@ function renderForCurrentDate() {
       text.textContent = "";
     }
   });
+}
+
+// 복사 / 붙여넣기 및 스케줄 관리
+
+function getScheduleForCurrentDate(index) {
+  return schedules.find((s) => {
+    if (s.date !== currentDate) return false;
+    const start = typeof s.startIndex === "number" ? s.startIndex : s.index;
+    const end =
+      typeof s.endIndex === "number" ? s.endIndex : start;
+    return index >= start && index <= end;
+  });
+}
+
+function upsertSchedule(index, title) {
+  const trimmed = title.trim();
+
+  // 기존: 같은 날짜 + 해당 인덱스를 포함하는 일정 제거
+  schedules = schedules.filter((s) => {
+    if (s.date !== currentDate) return true;
+    const start = typeof s.startIndex === "number" ? s.startIndex : s.index;
+    const end =
+      typeof s.endIndex === "number" ? s.endIndex : start;
+    const containsIndex = index >= start && index <= end;
+    return !containsIndex;
+  });
+
+  if (trimmed) {
+    schedules.push({
+      id: Date.now(),
+      date: currentDate,
+      startIndex: index,
+      endIndex: index,
+      title: trimmed,
+    });
+  }
+
+  saveSchedules();
+  renderForCurrentDate();
+}
+
+function handleCopy(index) {
+  const schedule = getScheduleForCurrentDate(index);
+  if (!schedule || !schedule.title) return;
+  clipboardTitle = schedule.title;
+}
+
+function handlePaste(index) {
+  if (!clipboardTitle) return;
+  upsertSchedule(index, clipboardTitle);
 }
 
 // 저장 / 불러오기
@@ -383,8 +318,8 @@ function saveSchedules() {
 // 유틸
 
 function formatTimeLabel(index) {
-  // 06:00을 하루의 시작으로 표시 (06:00 ~ 다음날 05:30)
-  const hour = (6 + Math.floor(index / 2)) % 24;
+  // 06:00을 시작으로 24:00 직전까지 표시 (06:00 ~ 23:30)
+  const hour = 6 + Math.floor(index / 2);
   const minute = index % 2 === 0 ? 0 : 30;
 
   const hh = String(hour).padStart(2, "0");
