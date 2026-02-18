@@ -331,7 +331,8 @@ function saveSchedules() {
 // 유틸
 
 function formatTimeLabel(index) {
-  const hour = Math.floor(index / 2);
+  // 06:00을 하루의 시작으로 표시 (06:00 ~ 다음날 05:30)
+  const hour = (6 + Math.floor(index / 2)) % 24;
   const minute = index % 2 === 0 ? 0 : 30;
 
   const hh = String(hour).padStart(2, "0");
