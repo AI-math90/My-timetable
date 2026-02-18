@@ -147,17 +147,20 @@ body {
 .time-grid-container {
   margin-top: 4px;
   border-radius: 18px;
-  background: #f9fafb;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.4);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  overflow: hidden;
+  padding: 6px;
 }
 
 .time-grid {
   max-height: 70vh;
   overflow-y: auto;
-  padding: 6px 0;
+  padding: 4px 2px;
   scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .time-grid::-webkit-scrollbar {
@@ -175,27 +178,30 @@ body {
 
 .time-block {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 60px 1fr;
   align-items: center;
-  gap: 10px;
-  padding: 6px 14px;
+  gap: 8px;
+  padding: 8px 10px;
   font-size: 13px;
   transition: background-color 0.15s ease, transform 0.05s ease,
     box-shadow 0.05s ease;
-  border-bottom: 1px solid var(--border-subtle);
-  touch-action: none;
+  border-radius: 12px;
+  background: #f9fafb;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  touch-action: pan-y; /* 세로 스크롤 허용 */
 }
 
 .time-block:last-child {
-  border-bottom: none;
+  margin-bottom: 2px;
 }
 
 .time-block:nth-child(odd) {
-  background: #f3f4f6;
+  border-left: 3px solid #bfdbfe;
 }
 
 .time-block:nth-child(even) {
-  background: #e5e7eb;
+  border-left: 3px solid #c7d2fe;
 }
 
 .time-label {
@@ -207,9 +213,9 @@ body {
 
 .time-content {
   position: relative;
-  border-radius: 12px;
-  padding: 6px 10px;
-  min-height: 30px;
+  border-radius: 10px;
+  padding: 6px 8px;
+  min-height: 32px;
   display: flex;
   align-items: center;
 }
